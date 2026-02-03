@@ -25,6 +25,11 @@ wheels/
 .installed.cfg
 *.egg
 
+# Node.js (remanentes)
+package.json
+package-lock.json
+node_modules/
+node_modules/
 # Base de datos
 *.db
 *.sqlite
