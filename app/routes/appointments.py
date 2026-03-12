@@ -155,16 +155,15 @@ async def update_appointment(
 # ==================== ELIMINAR CITA ====================
 @router.delete("/{appointment_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_appointment(appointment_id: int, db: Session = Depends(get_db)):
-    """Eliminar una cita (soft delete mediante cancelación)"""
+    """Eliminar una cita permanentemente y liberar el horario"""
     db_appointment = db.query(Appointment).filter(Appointment.id == appointment_id).first()
     if not db_appointment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Cita con ID {appointment_id} no encontrada"
         )
-    
-    # En lugar de eliminar, marcamos como cancelada
-    db_appointment.status = "cancelled"
+
+    db.delete(db_appointment)
     db.commit()
     return None
 
