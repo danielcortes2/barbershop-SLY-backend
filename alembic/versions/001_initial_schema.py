@@ -7,6 +7,7 @@ Create Date: 2024-02-03
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 
 # revision identifiers
@@ -16,60 +17,73 @@ branch_labels = None
 depends_on = None
 
 
+def _table_exists(bind, table_name: str) -> bool:
+    return inspect(bind).has_table(table_name)
+
+
+def _index_exists(bind, table_name: str, index_name: str) -> bool:
+    indexes = inspect(bind).get_indexes(table_name)
+    return any(idx['name'] == index_name for idx in indexes)
+
+
 def upgrade() -> None:
-    """Create initial database schema"""
-    
+    """Create initial database schema (skips existing tables)"""
+    bind = op.get_bind()
+
     # Crear tabla barbers
-    op.create_table(
-        'barbers',
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('name', sa.String(255), nullable=False),
-        sa.Column('phone', sa.String(20), nullable=True),
-        sa.Column('created_at', sa.DateTime(), nullable=False),
-        sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('name')
-    )
-    op.create_index(op.f('ix_barbers_id'), 'barbers', ['id'], unique=False)
-    op.create_index(op.f('ix_barbers_name'), 'barbers', ['name'], unique=True)
-    
+    if not _table_exists(bind, 'barbers'):
+        op.create_table(
+            'barbers',
+            sa.Column('id', sa.Integer(), nullable=False),
+            sa.Column('name', sa.String(255), nullable=False),
+            sa.Column('phone', sa.String(20), nullable=True),
+            sa.Column('created_at', sa.DateTime(), nullable=False),
+            sa.PrimaryKeyConstraint('id'),
+            sa.UniqueConstraint('name')
+        )
+        op.create_index(op.f('ix_barbers_id'), 'barbers', ['id'], unique=False)
+        op.create_index(op.f('ix_barbers_name'), 'barbers', ['name'], unique=True)
+
     # Crear tabla services
-    op.create_table(
-        'services',
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('name', sa.String(255), nullable=False),
-        sa.Column('duration', sa.Integer(), nullable=False),
-        sa.Column('price', sa.Numeric(precision=10, scale=2), nullable=False),
-        sa.Column('created_at', sa.DateTime(), nullable=False),
-        sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('name')
-    )
-    op.create_index(op.f('ix_services_id'), 'services', ['id'], unique=False)
-    op.create_index(op.f('ix_services_name'), 'services', ['name'], unique=True)
-    
+    if not _table_exists(bind, 'services'):
+        op.create_table(
+            'services',
+            sa.Column('id', sa.Integer(), nullable=False),
+            sa.Column('name', sa.String(255), nullable=False),
+            sa.Column('duration', sa.Integer(), nullable=False),
+            sa.Column('price', sa.Numeric(precision=10, scale=2), nullable=False),
+            sa.Column('created_at', sa.DateTime(), nullable=False),
+            sa.PrimaryKeyConstraint('id'),
+            sa.UniqueConstraint('name')
+        )
+        op.create_index(op.f('ix_services_id'), 'services', ['id'], unique=False)
+        op.create_index(op.f('ix_services_name'), 'services', ['name'], unique=True)
+
     # Crear tabla appointments
-    op.create_table(
-        'appointments',
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('client_name', sa.String(255), nullable=False),
-        sa.Column('client_phone', sa.String(20), nullable=True),
-        sa.Column('barber_id', sa.Integer(), nullable=False),
-        sa.Column('service_id', sa.Integer(), nullable=False),
-        sa.Column('appointment_date', sa.DateTime(), nullable=False),
-        sa.Column('status', sa.Enum('pending', 'confirmed', 'completed', 'cancelled', name='appointment_status'), nullable=False),
-        sa.Column('notes', sa.Text(), nullable=True),
-        sa.Column('created_at', sa.DateTime(), nullable=False),
-        sa.Column('updated_at', sa.DateTime(), nullable=False),
-        sa.ForeignKeyConstraint(['barber_id'], ['barbers.id'], ),
-        sa.ForeignKeyConstraint(['service_id'], ['services.id'], ),
-        sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('barber_id', 'appointment_date', name='unique_barber_appointment_date')
-    )
-    op.create_index(op.f('ix_appointments_id'), 'appointments', ['id'], unique=False)
-    op.create_index(op.f('ix_appointments_client_name'), 'appointments', ['client_name'], unique=False)
-    op.create_index(op.f('ix_appointments_appointment_date'), 'appointments', ['appointment_date'], unique=False)
-    op.create_index(op.f('ix_appointments_status'), 'appointments', ['status'], unique=False)
-    op.create_index(op.f('ix_appointments_barber_id'), 'appointments', ['barber_id'], unique=False)
-    op.create_index(op.f('ix_appointments_service_id'), 'appointments', ['service_id'], unique=False)
+    if not _table_exists(bind, 'appointments'):
+        op.create_table(
+            'appointments',
+            sa.Column('id', sa.Integer(), nullable=False),
+            sa.Column('client_name', sa.String(255), nullable=False),
+            sa.Column('client_phone', sa.String(20), nullable=True),
+            sa.Column('barber_id', sa.Integer(), nullable=False),
+            sa.Column('service_id', sa.Integer(), nullable=False),
+            sa.Column('appointment_date', sa.DateTime(), nullable=False),
+            sa.Column('status', sa.Enum('pending', 'confirmed', 'completed', 'cancelled', name='appointment_status'), nullable=False),
+            sa.Column('notes', sa.Text(), nullable=True),
+            sa.Column('created_at', sa.DateTime(), nullable=False),
+            sa.Column('updated_at', sa.DateTime(), nullable=False),
+            sa.ForeignKeyConstraint(['barber_id'], ['barbers.id'], ),
+            sa.ForeignKeyConstraint(['service_id'], ['services.id'], ),
+            sa.PrimaryKeyConstraint('id'),
+            sa.UniqueConstraint('barber_id', 'appointment_date', name='unique_barber_appointment_date')
+        )
+        op.create_index(op.f('ix_appointments_id'), 'appointments', ['id'], unique=False)
+        op.create_index(op.f('ix_appointments_client_name'), 'appointments', ['client_name'], unique=False)
+        op.create_index(op.f('ix_appointments_appointment_date'), 'appointments', ['appointment_date'], unique=False)
+        op.create_index(op.f('ix_appointments_status'), 'appointments', ['status'], unique=False)
+        op.create_index(op.f('ix_appointments_barber_id'), 'appointments', ['barber_id'], unique=False)
+        op.create_index(op.f('ix_appointments_service_id'), 'appointments', ['service_id'], unique=False)
 
 
 def downgrade() -> None:
