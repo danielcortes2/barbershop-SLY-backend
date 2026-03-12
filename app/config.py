@@ -1,13 +1,14 @@
 # =====================================================
-# CONFIGURACIÓN - FastAPI Application
+# CONFIGURACION - FastAPI Application
 # =====================================================
 
 from pydantic_settings import BaseSettings
 from typing import List
+from urllib.parse import quote_plus
 import os
 
 class Settings(BaseSettings):
-    """Configuración de la aplicación desde variables de entorno"""
+    """Configuracion de la aplicacion desde variables de entorno"""
     
     # Database
     db_host: str
@@ -15,6 +16,7 @@ class Settings(BaseSettings):
     db_user: str
     db_password: str
     db_name: str
+    database_engine: str = "mysql"  # "mysql" o "postgresql"
     
     # Application
     app_env: str = "development"
@@ -41,7 +43,10 @@ class Settings(BaseSettings):
     
     @property
     def database_url(self) -> str:
-        """Construir URL de conexión a la base de datos"""
-        return f"mysql+pymysql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
+        """Construir URL de conexion a la base de datos"""
+        password = quote_plus(self.db_password)
+        if self.database_engine == "postgresql":
+            return f"postgresql+psycopg2://{self.db_user}:{password}@{self.db_host}:{self.db_port}/{self.db_name}"
+        return f"mysql+pymysql://{self.db_user}:{password}@{self.db_host}:{self.db_port}/{self.db_name}?charset=utf8mb4"
 
 settings = Settings()

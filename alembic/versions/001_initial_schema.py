@@ -55,7 +55,7 @@ def upgrade() -> None:
         sa.Column('barber_id', sa.Integer(), nullable=False),
         sa.Column('service_id', sa.Integer(), nullable=False),
         sa.Column('appointment_date', sa.DateTime(), nullable=False),
-        sa.Column('status', sa.Enum('pending', 'confirmed', 'completed', 'cancelled'), nullable=False),
+        sa.Column('status', sa.Enum('pending', 'confirmed', 'completed', 'cancelled', name='appointment_status'), nullable=False),
         sa.Column('notes', sa.Text(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),
@@ -83,12 +83,14 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_appointments_client_name'), table_name='appointments')
     op.drop_index(op.f('ix_appointments_id'), table_name='appointments')
     op.drop_table('appointments')
-    
+    # Eliminar ENUM type en PostgreSQL
+    sa.Enum(name='appointment_status').drop(op.get_bind(), checkfirst=True)
+
     # Eliminar tabla services
     op.drop_index(op.f('ix_services_name'), table_name='services')
     op.drop_index(op.f('ix_services_id'), table_name='services')
     op.drop_table('services')
-    
+
     # Eliminar tabla barbers
     op.drop_index(op.f('ix_barbers_name'), table_name='barbers')
     op.drop_index(op.f('ix_barbers_id'), table_name='barbers')
