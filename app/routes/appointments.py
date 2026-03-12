@@ -18,15 +18,31 @@ async def get_all_appointments(
     skip: int = 0,
     limit: int = 100,
     status_filter: str = None,
+    date_filter: str = None,
     db: Session = Depends(get_db)
 ):
-    """Obtener todas las citas con paginación y filtro opcional por estado"""
+    """Obtener todas las citas con paginación y filtro opcional por estado y fecha"""
     query = db.query(Appointment)
-    
+
     if status_filter:
         query = query.filter(Appointment.status == status_filter)
-    
-    appointments = query.offset(skip).limit(limit).all()
+
+    if date_filter:
+        try:
+            target_date = datetime.strptime(date_filter, "%Y-%m-%d").date()
+            start_of_day = datetime.combine(target_date, time(0, 0, 0))
+            end_of_day = datetime.combine(target_date, time(23, 59, 59))
+            query = query.filter(
+                Appointment.appointment_date >= start_of_day,
+                Appointment.appointment_date <= end_of_day
+            )
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Formato de fecha inválido. Use YYYY-MM-DD"
+            )
+
+    appointments = query.order_by(Appointment.appointment_date.asc()).offset(skip).limit(limit).all()
     return appointments
 
 # ==================== HORARIOS DISPONIBLES ====================
