@@ -5,7 +5,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
-from datetime import datetime
+from datetime import datetime, time, timedelta
 from app.database import get_db
 from app.models import Appointment, Barber, Service
 from app.schemas import AppointmentCreate, AppointmentUpdate, AppointmentResponse
@@ -28,6 +28,53 @@ async def get_all_appointments(
     
     appointments = query.offset(skip).limit(limit).all()
     return appointments
+
+# ==================== HORARIOS DISPONIBLES ====================
+@router.get("/available-slots")
+async def get_available_slots(
+    barberId: int,
+    appointmentDate: str,
+    db: Session = Depends(get_db)
+):
+    """Retorna los horarios disponibles para un barbero en una fecha concreta"""
+    try:
+        target_date = datetime.strptime(appointmentDate, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Formato de fecha inválido. Use YYYY-MM-DD"
+        )
+
+    barber = db.query(Barber).filter(Barber.id == barberId).first()
+    if not barber:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Barbero con ID {barberId} no encontrado"
+        )
+
+    start_of_day = datetime.combine(target_date, time(0, 0, 0))
+    end_of_day = datetime.combine(target_date, time(23, 59, 59))
+
+    booked = db.query(Appointment).filter(
+        Appointment.barber_id == barberId,
+        Appointment.appointment_date >= start_of_day,
+        Appointment.appointment_date <= end_of_day,
+        Appointment.status != "cancelled"
+    ).all()
+
+    booked_times = {appt.appointment_date.strftime("%H:%M") for appt in booked}
+
+    # Slots de 09:00 a 19:00 cada 30 minutos
+    all_slots = []
+    slot = datetime.combine(target_date, time(9, 0))
+    end = datetime.combine(target_date, time(19, 0))
+    while slot <= end:
+        all_slots.append(slot.strftime("%H:%M"))
+        slot += timedelta(minutes=30)
+
+    available = [s for s in all_slots if s not in booked_times]
+    return {"availableSlots": available}
+
 
 # ==================== OBTENER CITA POR ID ====================
 @router.get("/{appointment_id}", response_model=AppointmentResponse)
