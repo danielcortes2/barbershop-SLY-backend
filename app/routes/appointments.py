@@ -4,6 +4,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List
 from datetime import datetime, time, timedelta
 from app.database import get_db
@@ -30,11 +31,8 @@ async def get_all_appointments(
     if date_filter:
         try:
             target_date = datetime.strptime(date_filter, "%Y-%m-%d").date()
-            start_of_day = datetime.combine(target_date, time(0, 0, 0))
-            end_of_day = datetime.combine(target_date, time(23, 59, 59))
             query = query.filter(
-                Appointment.appointment_date >= start_of_day,
-                Appointment.appointment_date <= end_of_day
+                func.date(Appointment.appointment_date) == target_date
             )
         except ValueError:
             raise HTTPException(
